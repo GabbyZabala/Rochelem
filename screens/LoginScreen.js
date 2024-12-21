@@ -9,24 +9,21 @@ const LoginScreen = ({ navigation }) => {
 
   const handleLogin = async () => {
     try {
-      // Retrieve user data from AsyncStorage
       const storedUsers = await AsyncStorage.getItem('users');
       const users = storedUsers ? JSON.parse(storedUsers) : [];
 
-      // Check if the entered credentials match any registered user
       const user = users.find(
         (u) => u.username === username && u.password === password
       );
 
       if (user) {
-        // Successful login
+        // Store the logged-in user's ID
         await AsyncStorage.multiSet([
           ['isLoggedIn', 'true'],
-          ['loggedInUsername', username], // Store the logged-in user's username
+          ['loggedInUserId', user.id.toString()], // Store user ID as a string
         ]);
         navigation.navigate('Home');
       } else {
-        // Invalid credentials
         Alert.alert('Error', 'Invalid username or password');
       }
     } catch (error) {

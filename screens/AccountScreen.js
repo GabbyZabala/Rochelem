@@ -9,16 +9,23 @@ const AccountScreen = ({ navigation }) => {
 
   useEffect(() => {
     const loadAccountData = async () => {
-      const storedAccountName = await AsyncStorage.getItem('accountName');
-      const storedAccountDescription = await AsyncStorage.getItem(
-        'accountDescription'
-      );
+      console.log("AccountScreen - loadAccountData: Start");
+      try {
+        const loggedInUserId = await AsyncStorage.getItem('loggedInUserId');
+        const storedAccountName = await AsyncStorage.getItem(`accountName_${loggedInUserId}`);
+        const storedAccountDescription = await AsyncStorage.getItem(`accountDescription_${loggedInUserId}`);
 
-      if (storedAccountName) {
-        setAccountName(storedAccountName);
-      }
-      if (storedAccountDescription) {
-        setAccountDescription(storedAccountDescription);
+        console.log("AccountScreen - loadAccountData: storedAccountName:", storedAccountName);
+        console.log("AccountScreen - loadAccountData: storedAccountDescription:", storedAccountDescription);
+
+        if (storedAccountName) {
+          setAccountName(storedAccountName);
+        }
+        if (storedAccountDescription) {
+          setAccountDescription(storedAccountDescription);
+        }
+      } catch (error) {
+        console.error('AccountScreen - loadAccountData: Error loading account data:', error);
       }
     };
 
@@ -26,13 +33,16 @@ const AccountScreen = ({ navigation }) => {
   }, []);
 
   const handleSave = async () => {
+    console.log("AccountScreen - handleSave: Start");
     try {
-      await AsyncStorage.setItem('accountName', accountName);
-      await AsyncStorage.setItem('accountDescription', accountDescription);
+      const loggedInUserId = await AsyncStorage.getItem('loggedInUserId');
+      await AsyncStorage.setItem(`accountName_${loggedInUserId}`, accountName);
+      await AsyncStorage.setItem(`accountDescription_${loggedInUserId}`, accountDescription);
+      console.log("AccountScreen - handleSave: Account data saved");
       navigation.navigate('Home');
     } catch (error) {
-      console.error('Error saving account data:', error);
-      // Handle error, possibly show an alert to the user
+      console.error('AccountScreen - handleSave: Error saving account data:', error);
+      Alert.alert('Error', 'Failed to save account data');
     }
   };
 

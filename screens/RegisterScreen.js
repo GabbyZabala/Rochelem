@@ -15,24 +15,26 @@ const RegisterScreen = ({ navigation }) => {
     }
 
     try {
-      // Retrieve existing users
       const storedUsers = await AsyncStorage.getItem('users');
       const users = storedUsers ? JSON.parse(storedUsers) : [];
 
-      // Check if the username is already registered
       if (users.some((u) => u.username === username)) {
         Alert.alert('Error', 'Username is already registered');
         return;
       }
 
-      // Add the new user
-      const newUser = { username, password };
+      // Find the highest existing ID and increment it for the new user
+      let newUserId = 400; // Start at 400
+      if (users.length > 0) {
+          const maxId = Math.max(...users.map(u => u.id));
+          newUserId = maxId >= 400 ? maxId + 1 : 400;
+      }
+
+      const newUser = { id: newUserId, username, password };
       users.push(newUser);
 
-      // Store updated users
       await AsyncStorage.setItem('users', JSON.stringify(users));
 
-      // Provide user feedback
       Alert.alert('Success', 'Account registered successfully');
       navigation.goBack();
     } catch (error) {

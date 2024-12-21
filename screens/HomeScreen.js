@@ -4,19 +4,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import styles from '../styles';
 
 const HomeScreen = ({ navigation }) => {
-  const [accountUsername, setAccountUsername] = useState('');
   const [notes, setNotes] = useState([]);
 
   useEffect(() => {
     const loadData = async () => {
+      console.log('HomeScreen - loadData: Start');
       try {
-        const loggedInUsername = await AsyncStorage.getItem('loggedInUsername');
-        setAccountUsername(loggedInUsername || '');
+        const loggedInUserId = await AsyncStorage.getItem('loggedInUserId');
+        console.log('HomeScreen - loadData: loggedInUserId:', loggedInUserId);
 
-        const userNotes = await loadNotesForUser(loggedInUsername);
-        setNotes(userNotes);
+        if (loggedInUserId) {
+          const userNotes = await loadNotesForUser(loggedInUserId);
+          console.log('HomeScreen - loadData: userNotes:', userNotes);
+          setNotes(userNotes);
+        } else {
+          console.log('HomeScreen - loadData: User not logged in. Redirecting to Login.');
+          navigation.navigate('Login');
+        }
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('HomeScreen - loadData: Error loading data:', error);
       }
     };
 
@@ -24,47 +30,67 @@ const HomeScreen = ({ navigation }) => {
     return unsubscribe;
   }, [navigation]);
 
-  const loadNotesForUser = async (username) => {
+  const loadNotesForUser = async (userId) => {
+    console.log('HomeScreen - loadNotesForUser: Start, userId:', userId);
     try {
       const allNotes = await AsyncStorage.getItem('notes');
+      console.log('HomeScreen - loadNotesForUser: allNotes:', allNotes);
+
       const parsedNotes = allNotes ? JSON.parse(allNotes) : {};
-      return parsedNotes[username] || [];
+      console.log('HomeScreen - loadNotesForUser: parsedNotes:', parsedNotes);
+
+      const userNotes = Object.values(parsedNotes).flat().filter(note => note.userId === parseInt(userId));
+      console.log('HomeScreen - loadNotesForUser: userNotes:', userNotes);
+
+      return userNotes;
     } catch (error) {
-      console.error('Error loading notes for user:', error);
+      console.error('HomeScreen - loadNotesForUser: Error loading notes for user:', error);
       return [];
     }
   };
 
   const handleLogout = async () => {
+    console.log('HomeScreen - handleLogout: Start');
     try {
-      await AsyncStorage.multiRemove(['isLoggedIn', 'loggedInUsername']);
-      navigation.goBack();
+      await AsyncStorage.multiRemove(['isLoggedIn', 'loggedInUserId']);
+      navigation.navigate('Login');
     } catch (error) {
-      console.error('Error during logout:', error);
+      console.error('HomeScreen - handleLogout: Error during logout:', error);
     }
   };
 
   const handleAddNote = () => {
-    navigation.navigate('NoteEdit', { note: null, onSave: addOrUpdateNote });
+    console.log('HomeScreen - handleAddNote: Start');
+    navigation.navigate('NoteEdit', { onSave: addOrUpdateNote });
   };
 
-  const addOrUpdateNote = (newNote) => {
+  const addOrUpdateNote = (updatedNote) => {
+    console.log('HomeScreen - addOrUpdateNote: Start, updatedNote:', updatedNote);
     setNotes((prevNotes) => {
-      if (newNote.id) {
-        // Update existing note
-        const updatedNotes = prevNotes.map((note) =>
-          note.id === newNote.id ? newNote : note
-        );
+      const existingNoteIndex = prevNotes.findIndex((note) => note.id === updatedNote.id);
+
+      if (existingNoteIndex >= 0) {
+        console.log('HomeScreen - addOrUpdateNote: Updating existing note');
+        const updatedNotes = [...prevNotes];
+        updatedNotes[existingNoteIndex] = updatedNote;
+        console.log('HomeScreen - addOrUpdateNote: updatedNotes:', updatedNotes);
         return updatedNotes;
       } else {
-        // Add new note
-        return [...prevNotes, newNote];
+        console.log('HomeScreen - addOrUpdateNote: Adding new note');
+        const newNotes = [...prevNotes, updatedNote];
+        console.log('HomeScreen - addOrUpdateNote: newNotes:', newNotes);
+        return newNotes;
       }
     });
   };
 
   const deleteNote = (noteId) => {
-    setNotes((prevNotes) => prevNotes.filter((note) => note.id !== noteId));
+    console.log('HomeScreen - deleteNote: Start, noteId:', noteId);
+    setNotes((prevNotes) => {
+      const updatedNotes = prevNotes.filter((note) => note.id !== noteId);
+      console.log('HomeScreen - deleteNote: updatedNotes:', updatedNotes);
+      return updatedNotes;
+    });
   };
 
   const renderNoteItem = ({ item }) => (
@@ -89,7 +115,7 @@ const HomeScreen = ({ navigation }) => {
           style={styles.Accounts}
           onPress={() => navigation.navigate('Account')}
         >
-          <Text style={styles.buttonText}>{accountUsername}</Text>
+          <Text style={styles.buttonText}>Account</Text>
         </TouchableOpacity>
       </View>
 
