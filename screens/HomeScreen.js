@@ -1,102 +1,120 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, FlatList } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { View, Text, TouchableOpacity, FlatList, Alert } from 'react-native';
 import styles from '../styles';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const HomeScreen = ({ navigation }) => {
+const HomeScreen = ({ navigation, route }) => {
   const [notes, setNotes] = useState([]);
 
   useEffect(() => {
-    const loadData = async () => {
-      console.log('HomeScreen - loadData: Start');
-      try {
-        const loggedInUserId = await AsyncStorage.getItem('loggedInUserId');
-        console.log('HomeScreen - loadData: loggedInUserId:', loggedInUserId);
+    // Load notes from AsyncStorage on app start
+    loadNotes();
 
-        if (loggedInUserId) {
-          const userNotes = await loadNotesForUser(loggedInUserId);
-          console.log('HomeScreen - loadData: userNotes:', userNotes);
-          setNotes(userNotes);
-        } else {
-          console.log('HomeScreen - loadData: User not logged in. Redirecting to Login.');
-          navigation.navigate('Login');
-        }
-      } catch (error) {
-        console.error('HomeScreen - loadData: Error loading data:', error);
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Check for updated or deleted notes passed back from NoteEditScreen
+      if (route.params?.updatedNote) {
+        addOrUpdateNote(route.params.updatedNote);
+        navigation.setParams({ updatedNote: null }); // Clear the param
       }
-    };
 
-    const unsubscribe = navigation.addListener('focus', loadData);
+      if (route.params?.deleteNoteId) {
+        deleteNote(route.params.deleteNoteId);
+        navigation.setParams({ deleteNoteId: null }); // Clear the param
+      }
+    });
+
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, route.params]);
 
-  const loadNotesForUser = async (userId) => {
-    console.log('HomeScreen - loadNotesForUser: Start, userId:', userId);
+  const loadNotes = async () => {
     try {
-      const allNotes = await AsyncStorage.getItem('notes');
-      console.log('HomeScreen - loadNotesForUser: allNotes:', allNotes);
-
-      const parsedNotes = allNotes ? JSON.parse(allNotes) : {};
-      console.log('HomeScreen - loadNotesForUser: parsedNotes:', parsedNotes);
-
-      const userNotes = Object.values(parsedNotes).flat().filter(note => note.userId === parseInt(userId));
-      console.log('HomeScreen - loadNotesForUser: userNotes:', userNotes);
-
-      return userNotes;
+      const storedNotes = await AsyncStorage.getItem('notes');
+      console.log('Stored notes loaded:', storedNotes); // Log loaded notes
+      if (storedNotes !== null) {
+        setNotes(JSON.parse(storedNotes));
+      }
     } catch (error) {
-      console.error('HomeScreen - loadNotesForUser: Error loading notes for user:', error);
-      return [];
+      console.error('Error loading notes:', error);
     }
   };
 
-  const handleLogout = async () => {
-    console.log('HomeScreen - handleLogout: Start');
-    try {
-      await AsyncStorage.multiRemove(['isLoggedIn', 'loggedInUserId']);
-      navigation.navigate('Login');
-    } catch (error) {
-      console.error('HomeScreen - handleLogout: Error during logout:', error);
-    }
+  const handleLogout = () => {
+    navigation.navigate('Login');
   };
 
   const handleAddNote = () => {
-    console.log('HomeScreen - handleAddNote: Start');
     navigation.navigate('NoteEdit', { onSave: addOrUpdateNote });
   };
 
-  const addOrUpdateNote = (updatedNote) => {
-    console.log('HomeScreen - addOrUpdateNote: Start, updatedNote:', updatedNote);
-    setNotes((prevNotes) => {
-      const existingNoteIndex = prevNotes.findIndex((note) => note.id === updatedNote.id);
+  // This function handles both adding new notes and updating existing ones
+  const addOrUpdateNote = async (updatedNote) => {
+    try {
+      let newNotes = [];
+      const storedNotes = await AsyncStorage.getItem('notes');
+      if (storedNotes) {
+        newNotes = JSON.parse(storedNotes);
+      }
+
+      const existingNoteIndex = newNotes.findIndex((note) => note.id === updatedNote.id);
 
       if (existingNoteIndex >= 0) {
-        console.log('HomeScreen - addOrUpdateNote: Updating existing note');
-        const updatedNotes = [...prevNotes];
-        updatedNotes[existingNoteIndex] = updatedNote;
-        console.log('HomeScreen - addOrUpdateNote: updatedNotes:', updatedNotes);
-        return updatedNotes;
+        // Update existing note
+        console.log('Updating existing note:', updatedNote);
+        newNotes[existingNoteIndex] = updatedNote;
       } else {
-        console.log('HomeScreen - addOrUpdateNote: Adding new note');
-        const newNotes = [...prevNotes, updatedNote];
-        console.log('HomeScreen - addOrUpdateNote: newNotes:', newNotes);
-        return newNotes;
+        // Add new note
+        console.log('Adding new note:', updatedNote);
+        newNotes = [...newNotes, updatedNote];
       }
-    });
+
+      console.log('New notes array:', newNotes);
+      setNotes(newNotes);
+      await AsyncStorage.setItem('notes', JSON.stringify(newNotes));
+      console.log('Notes saved to AsyncStorage');
+
+      navigation.navigate('Home'); // Navigate after saving
+    } catch (error) {
+      console.error('Error saving note:', error);
+    }
   };
 
-  const deleteNote = (noteId) => {
-    console.log('HomeScreen - deleteNote: Start, noteId:', noteId);
-    setNotes((prevNotes) => {
-      const updatedNotes = prevNotes.filter((note) => note.id !== noteId);
-      console.log('HomeScreen - deleteNote: updatedNotes:', updatedNotes);
-      return updatedNotes;
-    });
+  const deleteNote = async (noteId) => {
+    try {
+      // Filter out the note to be deleted
+      const newNotes = notes.filter((note) => note.id !== noteId);
+      console.log('Deleting note with ID:', noteId);
+      setNotes(newNotes);
+      await AsyncStorage.setItem('notes', JSON.stringify(newNotes));
+      console.log('Note deleted and updated notes saved to AsyncStorage');
+    } catch (error) {
+      console.error('Error deleting note:', error);
+    }
+  };
+
+  // Updated handleDeleteAllNotes to directly delete notes without alert
+  const handleDeleteAllNotes = async () => {
+    try {
+      // Clear notes from state
+      setNotes([]);
+      // Clear notes from AsyncStorage
+      await AsyncStorage.removeItem('notes');
+      console.log('All notes deleted from AsyncStorage');
+
+      // Force reload notes after deletion
+      loadNotes();
+    } catch (error) {
+      console.error('Error deleting all notes:', error);
+    }
   };
 
   const renderNoteItem = ({ item }) => (
     <TouchableOpacity
       onPress={() =>
-        navigation.navigate('NoteEdit', { note: item, onSave: addOrUpdateNote, onDelete: deleteNote })
+        navigation.navigate('NoteEdit', {
+          note: item, // Pass the note data to NoteEditScreen
+          onSave: addOrUpdateNote, // Pass the update function
+          onDelete: deleteNote, // Pass the delete function
+        })
       }
     >
       <View style={styles.noteItem}>
@@ -123,6 +141,10 @@ const HomeScreen = ({ navigation }) => {
 
       <TouchableOpacity style={styles.button} onPress={handleAddNote}>
         <Text style={styles.buttonText}>Add Note</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.button} onPress={handleDeleteAllNotes}>
+        <Text style={styles.buttonText}>Delete All Notes</Text>
       </TouchableOpacity>
 
       <FlatList

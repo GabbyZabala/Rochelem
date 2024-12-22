@@ -1,34 +1,26 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, TextInput } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import styles from '../styles';
 
 const LoginScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = async () => {
-    try {
-      const storedUsers = await AsyncStorage.getItem('users');
-      const users = storedUsers ? JSON.parse(storedUsers) : [];
+  // Temporary user data (replace with actual authentication later)
+  const users = [
+    { username: 'user1', password: 'password1' },
+    { username: 'user2', password: 'password2' },
+  ];
 
-      const user = users.find(
-        (u) => u.username === username && u.password === password
-      );
+  const handleLogin = () => {
+    const user = users.find(
+      (u) => u.username === username && u.password === password
+    );
 
-      if (user) {
-        // Store the logged-in user's ID
-        await AsyncStorage.multiSet([
-          ['isLoggedIn', 'true'],
-          ['loggedInUserId', user.id.toString()], // Store user ID as a string
-        ]);
-        navigation.navigate('Home');
-      } else {
-        Alert.alert('Error', 'Invalid username or password');
-      }
-    } catch (error) {
-      console.error('Error during login:', error);
-      Alert.alert('Error', 'An error occurred during login');
+    if (user) {
+      navigation.navigate('Home');
+    } else {
+      Alert.alert('Error', 'Invalid username or password');
     }
   };
 

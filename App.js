@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { View, Text } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import HomeScreen from './screens/HomeScreen';
 import NoteEditScreen from './screens/NoteEditScreen';
+import AccountScreen from './screens/AccountScreen'; // Import AccountScreen
 
 const Stack = createStackNavigator();
 
@@ -33,6 +32,7 @@ function App() {
           component={NoteEditScreen}
           options={{ title: 'Edit Note' }}
         />
+        <Stack.Screen name="Account" component={AccountScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

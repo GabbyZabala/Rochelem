@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   },
   noteItem: {
     backgroundColor: 'white',
-    padding: 10,
+    padding: 15,
     borderRadius: 5,
     marginBottom: 10,
   },
